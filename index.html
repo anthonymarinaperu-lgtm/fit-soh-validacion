@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tamizaje FIT/SOH · Validación</title>
+<style>body{margin:0}img{max-width:100%}</style>
+<style>
+/* Layout: cabecera compacta + 5 pestañas (matriz, flujo, casos de uso, modelo, maquetas); tablas y pantallas en contenedores con scroll propio */
+:root{
+  --bg:#f3f6f8; --surface:#ffffff; --sunk:#e9eef2; --fg:#16242e; --muted:#566874; --line:#d3dce3;
+  --accent:#0b6e99; --accent-soft:#dcedf5;
+  --ok:#17794f; --ok-bg:#dcf2e7; --warn:#96600a; --warn-bg:#fbedcf; --bad:#a8332b; --bad-bg:#f9dfdc; --info:#3b4fa3; --info-bg:#e2e6f8;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace; --ui:"Nunito","Segoe UI",system-ui,sans-serif;
+  /* maqueta: reproduce el tema claro de SIHCE, igual en ambos temas */
+  --m-head:#009cde; --m-bg:#f6f9fc; --m-card:#ffffff; --m-fg:#343a40; --m-mut:#5c717e; --m-line:#e0e0e0; --m-blue:#3566c0; --m-blue-bg:#f1f7fd; --m-side:#2c487c;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f171d; --surface:#18232b; --sunk:#22303a; --fg:#e6edf1; --muted:#9db0bc; --line:#32434f;
+  --accent:#5fb9e0; --accent-soft:#17384a;
+  --ok:#6fd3a4; --ok-bg:#143a2a; --warn:#ecc06a; --warn-bg:#40300e; --bad:#f09a92; --bad-bg:#47201c; --info:#a9b6f2; --info-bg:#252c55; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f171d; --surface:#18232b; --sunk:#22303a; --fg:#e6edf1; --muted:#9db0bc; --line:#32434f;
+  --accent:#5fb9e0; --accent-soft:#17384a;
+  --ok:#6fd3a4; --ok-bg:#143a2a; --warn:#ecc06a; --warn-bg:#40300e; --bad:#f09a92; --bad-bg:#47201c; --info:#a9b6f2; --info-bg:#252c55; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 64px;display:flex;flex-direction:column;gap:22px}
+h1{font-size:26px;line-height:1.2;margin:0;text-wrap:balance;font-weight:700}
+h2{font-size:19px;margin:0;text-wrap:balance}
+h3{font-size:15px;margin:0}
+p{margin:0}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.lead{color:var(--muted);max-width:68ch}
+.mono{font-family:var(--mono);font-size:.9em}
+header.top{display:flex;flex-direction:column;gap:8px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.kpi{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi b{font-size:22px;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi span{font-size:12.5px;color:var(--muted)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);padding-top:6px}
+nav.tabs button{font:600 14px var(--sans);color:var(--muted);background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+nav.tabs button:focus-visible,a:focus-visible,.fbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section.panel{display:flex;flex-direction:column;gap:20px}
+.block{display:flex;flex-direction:column;gap:10px}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--sunk);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.id{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+tr.grp td{background:var(--accent-soft);font-weight:600;font-size:12.5px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.p-ok{background:var(--ok-bg);color:var(--ok)} .p-warn{background:var(--warn-bg);color:var(--warn)} .p-bad{background:var(--bad-bg);color:var(--bad)} .p-info{background:var(--info-bg);color:var(--info)} .p-n{background:var(--sunk);color:var(--muted)}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fbtn{font:500 13px var(--sans);border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:99px;padding:5px 12px;cursor:pointer}
+.fbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.note{border-left:3px solid var(--warn);background:var(--warn-bg);padding:10px 14px;font-size:13.5px;border-radius:0 6px 6px 0}
+.note b{color:var(--warn)}
+/* flujo */
+.flow{display:flex;flex-direction:column;gap:14px}
+.fblock{display:grid;grid-template-columns:190px minmax(0,1fr);gap:14px;align-items:start}
+.fhead{position:sticky;top:60px;display:flex;flex-direction:column;gap:4px;padding-top:4px}
+.fhead .n{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.fsteps{display:flex;flex-direction:column;gap:8px;border-left:2px solid var(--line);padding-left:14px;min-width:0}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:5px}
+.step .t{font-weight:600}
+.step .d{font-size:13.5px;color:var(--muted)}
+.step.dec{border-style:dashed;border-color:var(--accent);background:var(--accent-soft)}
+.step.alt{border-color:var(--bad);margin-left:22px}
+.step.auto .t::after{content:"automático";font:500 10.5px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--info);background:var(--info-bg);border-radius:3px;padding:1px 6px;margin-left:8px;vertical-align:middle}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.branch{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
+.states{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
+.states i{color:var(--muted);font-style:normal}
+/* CU */
+.cus{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px}
+.cu{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.cu .hd{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.cu dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 10px;margin:0;font-size:13.5px}
+.cu dt{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}
+.cu dd{margin:0}
+.cu ol,.cu ul{margin:0;padding-left:20px;font-size:13.5px;display:flex;flex-direction:column;gap:2px}
+.cu h4{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.actors{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.actor{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:10px 12px;font-size:13.5px;display:flex;flex-direction:column;gap:4px}
+/* modelo */
+.layers{display:flex;flex-direction:column;gap:6px}
+.layer{display:grid;grid-template-columns:170px minmax(0,1fr);gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;align-items:center}
+.layer .boxes{display:flex;flex-wrap:wrap;gap:6px}
+.bx{font-size:12.5px;border:1px solid var(--line);background:var(--sunk);border-radius:4px;padding:3px 8px}
+.ents{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.ent{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:13px}
+.ent h4{margin:0;padding:6px 10px;background:var(--sunk);font:600 13px var(--mono)}
+.ent.core h4{background:var(--accent);color:var(--surface)}
+.ent p{padding:6px 10px;color:var(--muted)}
+.ent code{display:block;padding:0 10px 8px;font:12px var(--mono);color:var(--fg)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+ul.plain{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+/* maquetas */
+.scrnav{display:flex;flex-wrap:wrap;gap:6px}
+.scrnav a{font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 12px}
+.screen{display:flex;flex-direction:column;gap:8px;scroll-margin-top:70px}
+.cap{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+.cap p{font-size:13.5px;color:var(--muted);flex-basis:100%;max-width:80ch}
+.frame{border:1px solid var(--line);border-radius:8px;overflow-x:auto;box-shadow:0 6px 20px -12px rgba(0,0,0,.4)}
+.mk{min-width:860px;background:var(--m-bg);color:var(--m-fg);font-family:var(--ui);font-size:13px;line-height:1.4}
+.mk-top{background:var(--m-head);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:9px 16px;font-weight:700}
+.mk-top small{font-weight:600;opacity:.95}
+.mk-body{display:grid;grid-template-columns:200px minmax(0,1fr)}
+.mk-side{background:var(--m-side);color:#dbe6f5;padding:12px 0;display:flex;flex-direction:column;gap:2px;font-weight:600;font-size:12.5px}
+.mk-side span{padding:8px 16px}
+.mk-side span.on{background:rgba(255,255,255,.16);color:#fff;border-left:3px solid #fff;padding-left:13px}
+.mk-main{padding:16px 18px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.mk-title{font-size:17px;font-weight:800;color:#2c487c;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mk-card{background:var(--m-card);border:1px solid var(--m-line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.mk-card h5{margin:0;font-size:13.5px;font-weight:700;color:#44505a}
+.mk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 14px}
+.mk-grid.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mk-grid.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fld{display:flex;flex-direction:column;gap:2px}
+.fld label{font-size:11px;color:var(--m-mut);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.fld b{font-weight:700}
+.inp{border:1px solid #c9d3d8;border-radius:4px;padding:6px 9px;background:#fff;color:var(--m-fg);min-height:31px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.inp.ph{color:#a4b4bc}
+.btn{display:inline-flex;align-items:center;border-radius:4px;padding:7px 14px;font-weight:700;font-size:12.5px;background:var(--m-blue);color:#fff;white-space:nowrap}
+.btn.sec{background:#fff;color:var(--m-blue);border:1px solid var(--m-blue)}
+.btn.red{background:#c0392b}.btn.grn{background:#11907a}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.end{justify-content:flex-end}
+.tag{display:inline-block;border-radius:4px;padding:2px 8px;font-size:11.5px;font-weight:700}
+.tg-b{background:#e0edf9;color:#31539c}.tg-g{background:#cdfaec;color:#127362}.tg-r{background:#fde2df;color:#a8332b}.tg-y{background:#fdf0cc;color:#8a5a00}.tg-n{background:#e3e8ea;color:#44505a}
+.mk table{font-size:12.5px;font-family:var(--ui)}
+.mk th{background:#f1f7fd;color:#31539c;border-bottom:1px solid var(--m-line);font-size:11px}
+.mk td{border-bottom:1px solid var(--m-line);color:var(--m-fg)}
+.alert{border-radius:5px;padding:9px 12px;font-weight:600;font-size:12.5px}
+.al-g{background:#e7f8f1;color:#127362;border:1px solid #9cf3da}.al-r{background:#fdecea;color:#a8332b;border:1px solid #f3b8b1}.al-y{background:#fff6dd;color:#8a5a00;border:1px solid #f1d58a}.al-b{background:#f1f7fd;color:#31539c;border:1px solid #c7e0f6}
+.yn{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--m-line)}
+.yn:last-child{border-bottom:0}
+.sw{display:inline-flex;border:1px solid #c9d3d8;border-radius:4px;overflow:hidden;font-weight:700;font-size:11.5px}
+.sw span{padding:3px 12px;background:#fff;color:#778c99}.sw span.on{background:var(--m-blue);color:#fff}.sw span.on.r{background:#c0392b}
+.steps{display:flex;gap:4px;flex-wrap:wrap}
+.steps span{flex:1 1 90px;text-align:center;font-size:11px;font-weight:700;padding:5px 4px;background:#e3e8ea;color:#5c717e;border-radius:3px}
+.steps span.done{background:#cdfaec;color:#127362}.steps span.now{background:var(--m-blue);color:#fff}
+.bar{font-family:var(--mono);letter-spacing:2px;font-size:12px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{background:#fff;border:1px solid var(--m-line);border-radius:6px;padding:10px 12px}
+.tile b{display:block;font-size:20px;font-weight:800;color:#2c487c}
+.tile span{font-size:11.5px;color:var(--m-mut);font-weight:700}
+.hb{display:grid;grid-template-columns:150px minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:12px}
+.hb i{display:block;height:12px;background:#5394de;border-radius:2px}
+.hb em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
+.demo{font:600 10.5px var(--ui);letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.25);border-radius:3px;padding:2px 7px}
+@media (max-width:720px){ .fblock{grid-template-columns:1fr} .fhead{position:static} .layer{grid-template-columns:1fr} .step.alt{margin-left:0} h1{font-size:22px} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="top">
+  <span class="eyebrow">DPCAN · MINSA · RM N° 840-2025/MINSA</span>
+  <h1>Sistema de Tamizaje de Sangre Oculta en Heces (FIT/SOH)</h1>
+  <p class="lead">Paquete de validación para coordinadores: matriz de trazabilidad, flujo general del proceso, casos de uso, modelo de desarrollo y maquetas de pantallas. Estado del código FIT-SIHCE al 02/10/2026, contrastado con el documento de análisis del 25/08/2026.</p>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><b>26</b><span>requerimientos funcionales en 9 módulos</span></div>
+  <div class="kpi"><b>7</b><span>requerimientos implementados</span></div>
+  <div class="kpi"><b>13</b><span>implementados en parte</span></div>
+  <div class="kpi"><b>6</b><span>pendientes de construir</span></div>
+  <div class="kpi"><b>7</b><span>casos de uso (CU-01 a CU-07)</span></div>
+  <div class="kpi"><b>8</b><span>puntos por validar con la estrategia</span></div>
+</div>
+
+<nav class="tabs" role="tablist" aria-label="Secciones">
+  <button role="tab" data-tab="matriz" aria-selected="true">Matriz</button>
+  <button role="tab" data-tab="flujo" aria-selected="false">Flujo general</button>
+  <button role="tab" data-tab="casos" aria-selected="false">Casos de uso</button>
+  <button role="tab" data-tab="modelo" aria-selected="false">Modelo de desarrollo</button>
+  <button role="tab" data-tab="maquetas" aria-selected="false">Maquetas</button>
+</nav>
+
+<!-- ================= MATRIZ ================= -->
+<section class="panel" id="p-matriz">
+  <div class="block">
+    <h2>Matriz de trazabilidad: requerimiento → caso de uso → regla → pantalla → avance</h2>
+    <p class="lead">Cada fila enlaza un requerimiento de la especificación funcional con su caso de uso, la regla de negocio, la pantalla donde se atiende y lo que hoy existe en el código.</p>
+    <div class="filters" id="filtros">
+      <button class="fbtn" aria-pressed="true" data-f="all">Todos (26)</button>
+      <button class="fbtn" aria-pressed="false" data-f="ok">Implementado (7)</button>
+      <button class="fbtn" aria-pressed="false" data-f="warn">Parcial (13)</button>
+      <button class="fbtn" aria-pressed="false" data-f="bad">Pendiente (6)</button>
+    </div>
+    <div class="scroll"><table id="tmatriz"><thead><tr><th>ID</th><th>Requerimiento</th><th>CU</th><th>Regla</th><th>Pantalla</th><th>Avance</th><th>Qué hay y qué falta</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="block">
+    <h2>Puntos por validar con la estrategia</h2>
+    <p class="lead">Diferencias encontradas entre el documento del 25/08/2026, el documento de arquitectura y el código. Cada una necesita una decisión antes de cerrar el desarrollo.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>#</th><th>Tema</th><th>Documento 25/08/2026</th><th>Sistema hoy</th><th>Decisión que se necesita</th></tr></thead>
+      <tbody>
+      <tr><td class="id">V-1</td><td>Plazo de devolución de la muestra</td><td>Anotación en el flujo: «7 días / 15 días no»</td><td>Calcula entrega + 15 días</td><td>Confirmar si el plazo pasa a 7 días</td></tr>
+      <tr><td class="id">V-2</td><td>Plazo de entrega del resultado</td><td>Anotación: «7 días después de entregada la muestra»</td><td>No controla este plazo</td><td>Confirmar el plazo y si debe generar alerta</td></tr>
+      <tr><td class="id">V-3</td><td>Diagnóstico CIE-10 de la referencia</td><td>Sección 5.2: cáncer de colon <span class="mono">C189</span></td><td>Usa <span class="mono">C180</span> (según documento de arquitectura)</td><td>Definir un único código</td></tr>
+      <tr><td class="id">V-4</td><td>Código de procedimiento</td><td><span class="mono">82274</span> y <span class="mono">82270</span></td><td>Graba <span class="mono">82274</span> en todos los registros HIS</td><td>Indicar cuándo corresponde cada código</td></tr>
+      <tr><td class="id">V-5</td><td>Tipo de resultado</td><td>Cualitativo: positivo / negativo</td><td>Cualitativo, pero conserva el valor µg Hb/g y el corte de 20 como opcionales</td><td>Confirmar el retiro del valor numérico</td></tr>
+      <tr><td class="id">V-6</td><td>Resultado inválido</td><td>Sección 6.2 lo lista en la codificación (campo LAB «/SN»)</td><td>Solo positivo o negativo</td><td>Definir cómo se registra y si se repite la prueba</td></tr>
+      <tr><td class="id">V-7</td><td>Consejería preventiva <span class="mono">99402.08</span></td><td>Campo LAB con sesión 1 o 2</td><td>No está construida. Arquitectura indica sesión 2</td><td>Confirmar sesión y si es obligatoria</td></tr>
+      <tr><td class="id">V-8</td><td>Criterio de riesgo</td><td>Anotación: «Existe riesgo alto para cáncer de colon y recto»</td><td>Cualquiera de los 4 factores en Sí refiere al paciente</td><td>Confirmar que los 4 factores definen «riesgo alto»</td></tr>
+      </tbody></table></div>
+  </div>
+
+  <div class="block">
+    <h2>Matriz de integración con el ecosistema MINSA</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Sistema</th><th>Tipo</th><th>Datos que intercambia</th><th>Prioridad</th><th>Avance</th><th>Situación</th></tr></thead>
+      <tbody>
+      <tr><td><b>RENIEC</b></td><td>Consulta en tiempo real</td><td>Entra: nombre, nacimiento, sexo, ubigeo. Sale: DNI</td><td>Alta</td><td><span class="pill p-warn">Simulado</span></td><td>Servicio con datos de prueba; falta conectar el WebService dentro de la red MINSA</td></tr>
+      <tr><td><b>SIS</b></td><td>Consulta en tiempo real</td><td>Entra: afiliación, tipo de seguro, vigencia</td><td>Alta</td><td><span class="pill p-warn">Simulado</span></td><td>Responde siempre «no afiliado» hasta contar con el servicio productivo</td></tr>
+      <tr><td><b>HIS-MINSA</b></td><td>Exportación periódica</td><td>Sale: indicación (M1) y resultado (M2), tipo D, LAB N/A</td><td>Alta</td><td><span class="pill p-warn">Parcial</span></td><td>Genera CSV con 7 campos; falta el formato oficial con OGTI/OGEI</td></tr>
+      <tr><td><b>REFCON / INFORUS</b></td><td>Generación de referencia</td><td>Sale: hoja de referencia con diagnóstico y código FIT</td><td>Alta</td><td><span class="pill p-warn">Parcial</span></td><td>Entrega los datos de la hoja; falta el documento PDF y el envío</td></tr>
+      <tr><td><b>SIHCE (login central)</b></td><td>Autenticación SSO/JWT</td><td>Entra: usuario, roles, establecimiento</td><td>Alta</td><td><span class="pill p-warn">Por registrar</span></td><td>Falta registrar el módulo y sus 8 roles en el login central (OIDT)</td></tr>
+      <tr><td><b>RENIPRESS</b></td><td>Catálogo</td><td>Entra: código y nombre del establecimiento</td><td>Alta</td><td><span class="pill p-warn">Parcial</span></td><td>Usa el código de establecimiento del usuario; sin catálogo de destinos</td></tr>
+      <tr><td><b>SISMED</b></td><td>Control de stock</td><td>Stock, lotes y vencimientos de frascos</td><td>Media</td><td><span class="pill p-bad">Pendiente</span></td><td>Previsto para una fase posterior</td></tr>
+      <tr><td><b>REUNIS</b></td><td>Estadística</td><td>Indicadores, vía HIS-MINSA</td><td>Baja</td><td><span class="pill p-n">Indirecta</span></td><td>No requiere desarrollo propio</td></tr>
+      </tbody></table></div>
+  </div>
+</section>
+
+<!-- ================= FLUJO ================= -->
+<section class="panel" id="p-flujo" hidden>
+  <div class="block">
+    <h2>Flujo general del proceso de tamizaje</h2>
+    <p class="lead">17 pasos en 8 bloques. Incluye las correcciones anotadas en el documento del 25/08/2026: frasco recolector en lugar de kit, resultado cualitativo y criterio de riesgo alto. Cada paso indica quién lo ejecuta, el caso de uso, el estado del episodio y el registro HIS que produce.</p>
+    <div class="states"><i>Estados del episodio:</i>
+      <span class="pill p-info">En evaluación</span>→<span class="pill p-info">Frasco entregado</span>→<span class="pill p-info">Muestra recibida</span>→<span class="pill p-info">En análisis</span>→<span class="pill p-info">Resultado listo</span>→<span class="pill p-ok">Completado</span><i>o</i><span class="pill p-bad">Referido</span>
+      <i>· salidas:</i><span class="pill p-bad">Referido por riesgo</span><span class="pill p-warn">Muestra rechazada</span><span class="pill p-n">Anulado</span>
+    </div>
+  </div>
+  <div class="flow" id="flow"></div>
+</section>
+
+<!-- ================= CASOS ================= -->
+<section class="panel" id="p-casos" hidden>
+  <div class="block">
+    <h2>Actores</h2>
+    <div class="actors">
+      <div class="actor"><b>Médico cirujano</b><span>Evalúa el riesgo, indica el tamizaje, firma y entrega el resultado.</span><span class="mono">CU-01 02 03 05 06</span></div>
+      <div class="actor"><b>Enfermería</b><span>Apoya la identificación y entrega el frasco recolector.</span><span class="mono">CU-01 03</span></div>
+      <div class="actor"><b>Técnico de laboratorio</b><span>Recibe, valida, etiqueta y procesa la muestra.</span><span class="mono">CU-04 05</span></div>
+      <div class="actor"><b>Coordinador DPCAN</b><span>Monitorea cobertura y exporta al HIS-MINSA.</span><span class="mono">CU-07</span></div>
+      <div class="actor"><b>Administrador TI</b><span>Usuarios, catálogos, exportación y auditoría.</span><span class="mono">CU-07</span></div>
+      <div class="actor"><b>Sistema</b><span>Aplica las reglas: elegibilidad, doble registro HIS, referencia y cita.</span><span class="mono">transversal</span></div>
+    </div>
+  </div>
+  <div class="block">
+    <h2>Casos de uso</h2>
+    <div class="cus" id="cus"></div>
+  </div>
+  <div class="block">
+    <h2>Reglas de negocio</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Regla</th><th>Enunciado</th><th>Caso de uso</th><th>Prueba automática</th></tr></thead>
+      <tbody>
+      <tr><td class="id">RN-01</td><td>Solo se abre episodio a pacientes de 50 a 70 años.</td><td class="id">CU-01</td><td><span class="pill p-ok">3 pruebas</span></td></tr>
+      <tr><td class="id">RN-02</td><td>Cualquier factor de riesgo en Sí cancela el tamizaje y genera referencia electiva a gastroenterología.</td><td class="id">CU-02</td><td><span class="pill p-ok">1 prueba</span></td></tr>
+      <tr><td class="id">RN-03/04</td><td>Cada episodio genera exactamente dos registros HIS: Momento 1 (indicación) y Momento 2 (resultado), ambos tipo D.</td><td class="id">CU-03 · CU-06</td><td><span class="pill p-ok">1 prueba</span></td></tr>
+      <tr><td class="id">RN-05</td><td>Trazabilidad doble: frasco recolector (etiquetado en recepción) y kit de muestreo (capturado en el análisis).</td><td class="id">CU-04 · CU-05</td><td><span class="pill p-n">Sin prueba</span></td></tr>
+      <tr><td class="id">RN-06</td><td>El resultado no se entrega sin firma electrónica del médico.</td><td class="id">CU-05 · CU-06</td><td><span class="pill p-ok">1 prueba</span></td></tr>
+      <tr><td class="id">RN-08</td><td>Resultado positivo: referencia urgente a gastroenterología con diagnóstico CIE-10.</td><td class="id">CU-06</td><td><span class="pill p-ok">1 prueba</span></td></tr>
+      <tr><td class="id">RN-09</td><td>Resultado negativo: cita automática de próximo tamizaje a 365 días y cierre del episodio.</td><td class="id">CU-06</td><td><span class="pill p-ok">1 prueba</span></td></tr>
+      <tr><td class="id">RN-11</td><td>Cada exportación al HIS-MINSA deja bitácora de exportados y pendientes.</td><td class="id">CU-07</td><td><span class="pill p-n">Sin prueba</span></td></tr>
+      </tbody></table></div>
+  </div>
+</section>
+
+<!-- ================= MODELO ================= -->
+<section class="panel" id="p-modelo" hidden>
+  <div class="block">
+    <h2>Arquitectura construida</h2>
+    <p class="lead">El módulo sigue la arquitectura y convenciones de SIHCE – Anatomía Patológica. Esto cambia la propuesta inicial del documento de arquitectura (plantillas Django con HTMX) por una aplicación React separada del backend, para integrarse al login central de SIHCE.</p>
+    <div class="layers">
+      <div class="layer"><div><h3>Presentación</h3><span class="mono">React + Vite + Tailwind</span></div><div class="boxes"><span class="bx">Bandeja de tamizaje</span><span class="bx">Abrir episodio</span><span class="bx">Detalle del episodio (paneles por estado)</span><span class="bx">Referencias</span><span class="bx">Exportación HIS</span></div></div>
+      <div class="layer"><div><h3>Aplicación</h3><span class="mono">Django + DRF</span></div><div class="boxes"><span class="bx">API REST /api/tamizaje-fit/ (14 rutas)</span><span class="bx">Reglas de negocio RN-01 a RN-09</span><span class="bx">Máquina de estados del episodio</span><span class="bx">Permisos por rol y establecimiento</span></div></div>
+      <div class="layer"><div><h3>Integración</h3><span class="mono">servicios</span></div><div class="boxes"><span class="bx">RENIEC con caché (simulado)</span><span class="bx">SIS (simulado)</span><span class="bx">Exportador HIS (CSV)</span><span class="bx">Generador de referencia</span><span class="bx">SSO/JWT SIHCE</span></div></div>
+      <div class="layer"><div><h3>Datos</h3><span class="mono">PostgreSQL + Redis</span></div><div class="boxes"><span class="bx">10 entidades</span><span class="bx">Migraciones</span><span class="bx">Verificado solo con SQLite temporal</span></div></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>Modelo de datos</h2>
+    <p class="lead">El episodio de tamizaje es la entidad central. Todas las demás se enlazan a él.</p>
+    <div class="ents">
+      <div class="ent"><h4>Paciente</h4><p>Datos validados con RENIEC y SIS.</p><code>dni · nombres · fecha_nacimiento · sexo · sis_afiliado</code></div>
+      <div class="ent core"><h4>EpisodioTamizaje</h4><p>Un ciclo completo de tamizaje. Controla el estado.</p><code>numero_episodio · estado · edad_al_tamizaje · asintomatico · fecha_max_devolucion</code></div>
+      <div class="ent"><h4>EvaluacionRiesgo</h4><p>1 por episodio. Los 4 factores.</p><code>hist_familiar_ccr · antec_eii · antec_sindrome_hereditario · antec_polipo_adenomatoso</code></div>
+      <div class="ent"><h4>FrascoRecolector</h4><p>1 por episodio. Se etiqueta en recepción.</p><code>codigo_barras · lote · fecha_vencimiento · codigo_etiqueta_recepcion · estado_muestra</code></div>
+      <div class="ent"><h4>KitMuestreo</h4><p>1 por frasco. Dispositivo del análisis.</p><code>codigo_barras_kit · lote_kit · fecha_vencimiento_kit</code></div>
+      <div class="ent"><h4>ResultadoFIT</h4><p>1 por frasco. Resultado y firma.</p><code>resultado_cualitativo · campo_lab · firmado_por · fecha_entrega_resultado</code></div>
+      <div class="ent"><h4>Referencia</h4><p>Varias por episodio. Por riesgo o por positivo.</p><code>tipo · prioridad · diagnostico_cie10 · estado · diagnostico_colonoscopia</code></div>
+      <div class="ent"><h4>CitaProximoTamizaje</h4><p>1 por episodio negativo.</p><code>fecha_programada · estado</code></div>
+      <div class="ent"><h4>RegistroHIS</h4><p>Exactamente 2 por episodio (M1 y M2).</p><code>momento · codigo_cpms · tipo_dx · campo_lab · exportado</code></div>
+      <div class="ent"><h4>ExportacionHISLog</h4><p>Bitácora de cada exportación.</p><code>formato · total_registros · total_exportados · total_pendientes</code></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>Desarrollo por fases</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Fase</th><th>Alcance</th><th>Entregable</th><th>Avance</th><th>Para cerrar la fase</th></tr></thead>
+      <tbody>
+      <tr><td class="id">Fase 1</td><td>Núcleo del episodio, RENIEC/SIS, trazabilidad del frasco, resultado y firma</td><td>Versión operativa en establecimiento piloto</td><td><span class="pill p-warn">Construido, sin desplegar</span></td><td>Conectar RENIEC y SIS reales, registrar el módulo en el login SIHCE, instalar y probar en PostgreSQL</td></tr>
+      <tr><td class="id">Fase 2</td><td>Referencia automática, cita automática y exportación HIS-MINSA</td><td>Flujo posterior al resultado e integración HIS</td><td><span class="pill p-warn">Parcial</span></td><td>Formato oficial HIS, validación previa, hoja de referencia en PDF, consejería 99402.08</td></tr>
+      <tr><td class="id">Fase 3</td><td>Tablero DPCAN, reportes, modo sin conexión y stock (SISMED)</td><td>Monitoreo nacional y operación rural</td><td><span class="pill p-bad">Pendiente</span></td><td>Todo el alcance</td></tr>
+      <tr><td class="id">Fase 4</td><td>Optimización, escala a más de 500 000 tamizajes por año, seguridad</td><td>Producción nacional</td><td><span class="pill p-bad">Pendiente</span></td><td>Bitácora de auditoría, permisos por rol, pruebas de carga</td></tr>
+      </tbody></table></div>
+  </div>
+
+  <div class="two">
+    <div class="block">
+      <h2>Verificado</h2>
+      <ul class="plain">
+        <li>13 pruebas automáticas pasan (reglas de elegibilidad, riesgo, doble registro HIS, firma, referencia y cita).</li>
+        <li>Migraciones consistentes y revisión de Django sin errores, sobre una base temporal.</li>
+        <li>5 pantallas del frontend conectadas a la API.</li>
+      </ul>
+    </div>
+    <div class="block">
+      <h2>Gestiones pendientes</h2>
+      <ul class="plain">
+        <li>Registrar el identificador del módulo y los 8 roles en el login central de SIHCE (DPCAN / OIDT).</li>
+        <li>Instalar dependencias del frontend y hacer la primera verificación visual en el equipo.</li>
+        <li>Conectar PostgreSQL y Redis reales.</li>
+        <li>Definir con infraestructura los playbooks de despliegue para FIT.</li>
+        <li>Acordar con OGTI/OGEI el formato exacto de exportación HIS.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MAQUETAS ================= -->
+<section class="panel" id="p-maquetas" hidden>
+  <div class="block">
+    <h2>Maquetas de pantallas</h2>
+    <p class="lead">Diez plantillas con el aspecto del módulo en SIHCE. Las nueve primeras corresponden a las cinco pantallas ya construidas (el detalle del episodio se muestra en cada etapa); el tablero es una propuesta. Todos los pacientes y cifras son datos de ejemplo.</p>
+    <div class="scrnav" id="scrnav"></div>
+  </div>
+  <div id="screens" class="block" style="gap:28px"></div>
+</section>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), el=(h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild};
+const ST={ok:['p-ok','Implementado'],warn:['p-warn','Parcial'],bad:['p-bad','Pendiente']};
+
+/* ---------- MATRIZ ---------- */
+const M=[
+['1. Gestión del paciente'],
+['RF-001','Consulta del paciente por DNI con validación RENIEC','CU-01','RN-01','Abrir episodio','warn','El flujo y el caché están listos; RENIEC responde con datos simulados.'],
+['RF-002','Registro de nuevo episodio de tamizaje','CU-01','—','Abrir episodio','warn','Crea el episodio con número único por establecimiento y año. Falta alertar si ya hubo tamizaje en los últimos 12 meses.'],
+['RF-003','Validación automática de elegibilidad','CU-01','RN-01','Abrir episodio','warn','Bloquea fuera de 50–70 años. Registra «asintomático» pero no deriva cuando hay síntomas.'],
+['2. Evaluación de riesgo'],
+['RF-004','Registro de los 4 factores de riesgo','CU-02','RN-02','Detalle · Evaluación de riesgo','ok','Formulario completo con parentesco y edad del familiar.'],
+['RF-005','Derivación automática por factor de riesgo','CU-02','RN-02','Detalle · Referido por riesgo','ok','Cancela la indicación y genera referencia electiva. Ya no usa Z12.6, según observación de la estrategia.'],
+['RF-006','Registro de consejería preventiva (99402.08)','—','—','—','bad','No construido. Ver punto V-7.'],
+['3. Entrega del frasco recolector'],
+['RF-007','Entrega del frasco con código de barras','CU-03','RN-05','Detalle · Entrega de frasco','ok','Captura código, lote y vencimiento, y vincula el frasco al episodio.'],
+['RF-008','Validación del frasco','CU-03','—','Detalle · Entrega de frasco','warn','Impide asignar un frasco ya usado. Falta bloquear frascos vencidos y alertar vencimiento próximo.'],
+['RF-009','Instructivo personalizado para el paciente','CU-03','—','—','bad','No construido: falta el documento imprimible.'],
+['RF-010','Registro HIS de la indicación (Momento 1)','CU-03','RN-03/04','Automático','ok','Se genera al entregar el frasco, tipo D. Ver punto V-4 sobre el código.'],
+['4. Laboratorio: recepción'],
+['RF-011','Recepción de la muestra','CU-04','RN-05','Detalle · Recepción de muestra','warn','Registra fecha, técnico y etiqueta de laboratorio. Falta verificar el plazo de devolución (V-1).'],
+['RF-012','Validación previa al análisis','CU-04','—','Detalle · Recepción de muestra','warn','Marca muestra válida o rechazada con motivo. Falta la lista de verificación (envase, muestra visible, conservación).'],
+['RF-013','Registro del procesamiento','CU-05','RN-05','Detalle · Kit y resultado','warn','Guarda equipo, serie, calibración y kit de muestreo. No bloquea si la calibración está vencida.'],
+['5. Resultado FIT'],
+['RF-014','Registro del resultado','CU-05','—','Detalle · Resultado FIT','warn','Resultado cualitativo positivo/negativo con campo LAB automático. Conserva el valor numérico opcional (V-5).'],
+['RF-015','Registro HIS del resultado (Momento 2)','CU-06','RN-03/04','Automático','ok','Se genera al entregar el resultado: tipo D, LAB = N o A.'],
+['RF-016','Entrega del resultado al paciente','CU-06','RN-06','Detalle · Firma y entrega','warn','Exige firma y registra la entrega. Falta el informe imprimible.'],
+['6. Después del resultado'],
+['RF-017','Referencia automática si el resultado es positivo','CU-06','RN-08','Referencias','ok','Referencia urgente a gastroenterología con diagnóstico y código FIT. La hoja se entrega como datos, sin PDF.'],
+['RF-018','Cita automática si el resultado es negativo','CU-06','RN-09','Detalle · Próximo tamizaje','warn','Programa la cita a 365 días y cierra el episodio. Falta la notificación al paciente.'],
+['RF-019','Seguimiento de referidos','CU-06','—','Referencias','ok','Registra estado, fecha de atención y diagnóstico de colonoscopía.'],
+['7. Integración HIS-MINSA'],
+['RF-020','Exportación al HIS-MINSA','CU-07','RN-11','Exportación HIS-MINSA','warn','Exporta CSV a demanda con bitácora. Falta el formato oficial y la ejecución diaria automática.'],
+['RF-021','Validación de registros antes de exportar','CU-07','—','Exportación HIS-MINSA','bad','No valida campos obligatorios ni lista registros incompletos.'],
+['8. Reportes'],
+['RF-022','Tablero de cobertura','—','—','Tablero (propuesta)','bad','No construido. Maqueta propuesta en la pestaña Maquetas.'],
+['RF-023','Reporte de seguimiento de frascos','—','—','—','bad','No construido.'],
+['RF-024','Reporte nominal de pacientes por estado','—','—','Bandeja de tamizaje','warn','La bandeja busca por episodio o DNI y muestra el estado. Falta el reporte descargable.'],
+['9. Seguridad'],
+['RF-025','Control de acceso por roles','—','—','Ingreso SIHCE','warn','Ingreso con el login central y 8 roles definidos. Hoy todos los roles ven todo el módulo; falta el registro en el login central.'],
+['RF-026','Trazabilidad completa del episodio','—','—','—','bad','Guarda usuario y fecha de cada paso, pero no hay bitácora de cambios.'],
+];
+const tb=$('#tmatriz tbody');
+M.forEach(r=>{
+  if(r.length===1){tb.append(el(`<table><tbody><tr class="grp"><td colspan="7">${r[0]}</td></tr></tbody></table>`).querySelector('tr'));return}
+  const [id,req,cu,rn,pan,st,obs]=r;
+  tb.append(el(`<table><tbody><tr data-st="${st}"><td class="id">${id}</td><td><b>${req}</b></td><td class="id">${cu}</td><td class="id">${rn}</td><td>${pan}</td><td><span class="pill ${ST[st][0]}">${ST[st][1]}</span></td><td>${obs}</td></tr></tbody></table>`).querySelector('tr'));
+});
+$('#filtros').addEventListener('click',e=>{
+  const b=e.target.closest('.fbtn'); if(!b) return;
+  document.querySelectorAll('#filtros .fbtn').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  const f=b.dataset.f;
+  tb.querySelectorAll('tr').forEach(tr=>{ tr.hidden = f!=='all' && (tr.classList.contains('grp') || tr.dataset.st!==f); });
+});
+
+/* ---------- FLUJO ---------- */
+const chip=(c,t)=>`<span class="pill ${c}">${t}</span>`;
+const F=[
+ {n:'Bloque 1',t:'Identificación y elegibilidad',cu:'CU-01',s:[
+  {t:'1. Ingresar el DNI del paciente',d:'8 dígitos. Consulta RENIEC (o usa el caché vigente) y verifica la afiliación al SIS.',a:'Médico / Enfermería'},
+  {t:'2. Mostrar datos y validar la edad',d:'Calcula la edad y solo continúa entre 50 y 70 años.',a:'Sistema',auto:1},
+  {alt:1,t:'Fuera del rango de edad',d:'Bloquea el episodio y muestra el motivo.'},
+  {t:'3. Confirmar que el paciente es asintomático',d:'Si presenta síntomas no corresponde tamizaje: se deriva a evaluación clínica.',a:'Médico',e:'En evaluación'}]},
+ {n:'Bloque 2',t:'Evaluación de factores de riesgo',cu:'CU-02',s:[
+  {t:'4. Completar el formulario de factores de riesgo',d:'Historia familiar de cáncer colorrectal, enfermedad inflamatoria intestinal, síndrome hereditario y pólipo adenomatoso.',a:'Médico'},
+  {dec:1,t:'¿Existe riesgo alto para cáncer de colon y recto?',d:'Sí, si alguno de los factores es afirmativo. Redacción según la anotación del documento del 25/08/2026.'},
+  {alt:1,t:'5a. Sí: referir a gastroenterología',d:'Cancela la indicación del tamizaje y genera una referencia electiva. El episodio termina aquí.',e:'Referido por riesgo',auto:1},
+  {t:'5b. No: habilitar la indicación del tamizaje',d:'El episodio continúa.',a:'Sistema',auto:1}]},
+ {n:'Bloque 3',t:'Consejería preventiva (recomendada)',cu:'sin CU',s:[
+  {t:'6. Registrar la consejería preventiva',d:'Consejería en factores de riesgo de cáncer. Aún no está construida en el sistema.',a:'Médico',h:'99402.08 · tipo D · LAB = sesión'}]},
+ {n:'Bloque 4',t:'Entrega del frasco recolector de heces',cu:'CU-03',s:[
+  {t:'7. Escanear el código de barras del frasco',d:'Captura número, lote y vencimiento. No admite un frasco ya asignado a otro paciente.',a:'Médico / Enfermería',e:'Frasco entregado',h:'Momento 1 · 82274/82270 · tipo D'},
+  {t:'8. Calcular la fecha máxima de devolución',d:'Hoy: entrega + 15 días. El documento del 25/08 anota 7 días (punto V-1).',a:'Sistema',auto:1},
+  {t:'9. Imprimir el instructivo para el paciente',d:'Nombre, fecha límite e instrucciones de toma de muestra. Pendiente de construir.',a:'Sistema',auto:1}]},
+ {n:'Bloque 5',t:'Recepción de la muestra en laboratorio',cu:'CU-04',s:[
+  {t:'10. Escanear el frasco devuelto',d:'Muestra el episodio y verifica que la devolución esté dentro del plazo.',a:'Técnico de laboratorio'},
+  {t:'11. Validar la muestra y etiquetar el frasco',d:'Envase en buen estado y muestra visible. El frasco recibe la etiqueta de laboratorio.',a:'Técnico de laboratorio',e:'Muestra recibida'},
+  {alt:1,t:'Muestra rechazada',d:'Se registra el motivo y se entrega un nuevo frasco; el episodio vuelve al paso 7.',e:'Muestra rechazada'}]},
+ {n:'Bloque 6',t:'Procesamiento de la prueba',cu:'CU-05',s:[
+  {t:'12. Registrar el kit de muestreo y el equipo',d:'Vincula frasco, kit y episodio. Equipo OC-Sensor DIANA con calibración vigente.',a:'Técnico de laboratorio',e:'En análisis'},
+  {t:'13. Ingresar el resultado cualitativo',d:'Positivo o negativo. El sistema asigna el campo LAB: A para positivo, N para negativo.',a:'Técnico de laboratorio',e:'Resultado listo'},
+  {t:'14. Firmar electrónicamente el resultado',d:'Sin firma del médico no se habilita la entrega.',a:'Médico responsable'}]},
+ {n:'Bloque 7',t:'Entrega del resultado al paciente',cu:'CU-06',s:[
+  {t:'15. Entregar el resultado',d:'El documento del 25/08 anota un plazo de 7 días desde la entrega de la muestra (punto V-2).',a:'Médico',h:'Momento 2 · 82274/82270 · tipo D · LAB N o A'},
+  {dec:1,t:'¿El resultado es positivo?',d:''},
+  {br:[{t:'16a. Negativo: programar próxima cita',d:'Cita automática a 365 días y cierre del episodio.',e:'Completado',ok:1},{t:'16b. Positivo: referencia urgente',d:'Referencia a gastroenterología con diagnóstico CIE-10 y código FIT.',e:'Referido'}]}]},
+ {n:'Bloque 8',t:'Exportación al HIS-MINSA',cu:'CU-07',s:[
+  {t:'17. Exportar los registros',d:'Incluye los dos momentos de cada episodio y deja bitácora de exportados y pendientes.',a:'Coordinador / Administrador'}]},
+];
+const stepH=s=>`<div class="step ${s.dec?'dec':''} ${s.alt?'alt':''} ${s.auto?'auto':''}"><span class="t">${s.t}</span>${s.d?`<span class="d">${s.d}</span>`:''}<span class="chips">${s.a?chip('p-n',s.a):''}${s.e?chip(s.ok?'p-ok':(s.alt||/Referido/.test(s.e))?'p-bad':'p-info','Estado: '+s.e):''}${s.h?chip('p-warn','HIS: '+s.h):''}</span></div>`;
+F.forEach(b=>{
+  $('#flow').append(el(`<div class="fblock"><div class="fhead"><span class="n">${b.n} · ${b.cu}</span><h3>${b.t}</h3></div><div class="fsteps">${b.s.map(s=>s.br?`<div class="branch">${s.br.map(stepH).join('')}</div>`:stepH(s)).join('')}</div></div>`));
+});
+
+/* ---------- CASOS DE USO ---------- */
+const CU=[
+ ['CU-01','Abrir episodio y validar elegibilidad','Médico / Enfermería','El paciente se presenta en el establecimiento.','Episodio abierto en estado «En evaluación» con datos demográficos cargados.',
+  ['Ingresa el DNI.','El sistema consulta RENIEC o usa el caché y muestra nombre, edad y sexo.','Consulta la afiliación al SIS.','Calcula la edad y verifica 50–70 años.','Registra si el paciente está asintomático.'],
+  ['Edad fuera de rango: bloquea el episodio con mensaje.','RENIEC no responde: ingreso manual con advertencia.','Con síntomas: deriva a evaluación clínica.'],'warn','Construido con RENIEC y SIS simulados'],
+ ['CU-02','Evaluar factores de riesgo','Médico cirujano','Episodio abierto y paciente elegible.','Evaluación registrada; el episodio continúa o queda referido.',
+  ['El sistema muestra los 4 factores.','El médico marca Sí o No en cada uno.','El sistema evalúa el conjunto.','Si todos son No, habilita la entrega del frasco.'],
+  ['Algún factor en Sí: cancela la indicación, genera referencia electiva y deja el episodio en «Referido por riesgo».'],'ok','Construido y probado'],
+ ['CU-03','Entregar el frasco recolector de heces','Médico / Enfermería','Evaluación sin factores de riesgo; frasco disponible.','Frasco vinculado, registro HIS del Momento 1 y estado «Frasco entregado».',
+  ['Escanea el código de barras del frasco.','El sistema captura número, lote y vencimiento.','Verifica que no esté vencido ni asignado.','Vincula el frasco y registra fecha y hora.','Imprime el instructivo.','Genera el registro HIS del Momento 1.','Calcula la fecha máxima de devolución.'],
+  ['Código ilegible: ingreso manual.','Frasco vencido: no permite asignar.','Frasco ya asignado: alerta de duplicidad.'],'warn','Falta instructivo y control de vencimiento'],
+ ['CU-04','Recibir y etiquetar la muestra','Técnico de laboratorio','El paciente devuelve el frasco con la muestra.','Muestra validada, frasco etiquetado y estado «Muestra recibida».',
+  ['Escanea el frasco devuelto.','El sistema muestra el episodio y la fecha límite.','Verifica el plazo de devolución.','Registra la validación previa al análisis.','Etiqueta el frasco con el código de laboratorio.','Confirma la recepción.'],
+  ['Fuera de plazo o en mal estado: muestra rechazada y nuevo frasco.','Código ilegible: ingreso manual.'],'warn','Falta control de plazo y lista de verificación'],
+ ['CU-05','Analizar la muestra y registrar el resultado','Técnico de laboratorio / Médico','Muestra recibida y frasco etiquetado.','Resultado firmado y listo para entrega, con trazabilidad frasco–kit.',
+  ['Registra el procesamiento en el equipo.','Confirma el código del frasco.','Escanea el kit de muestreo.','Vincula frasco, kit y episodio.','Ingresa el resultado: positivo o negativo.','El sistema asigna el campo LAB.','El médico firma electrónicamente.'],
+  ['Sin firma: no se habilita la entrega.','Código de kit ilegible: ingreso manual.'],'warn','Construido; ajustar según punto V-5'],
+ ['CU-06','Entregar el resultado y ejecutar el flujo posterior','Médico cirujano','Resultado registrado y firmado.','Resultado entregado, cita o referencia generada y registro HIS del Momento 2.',
+  ['Imprime el informe de resultado.','Registra el Momento 2 en HIS.','Negativo: cita a 365 días y episodio completado.','Positivo: referencia urgente y episodio referido.'],
+  ['El paciente no recoge el resultado: queda pendiente y se notifica.'],'warn','Reglas probadas; falta informe impreso y notificación'],
+ ['CU-07','Exportar registros al HIS-MINSA','Coordinador / Administrador','Hay registros HIS pendientes de exportar.','Registros exportados y bitácora actualizada.',
+  ['Valida los campos obligatorios.','Genera el archivo en formato HIS.','Incluye ambos momentos.','Registra la bitácora de exportación.'],
+  ['Registros incompletos: se listan para corrección.'],'warn','Exporta CSV; falta validación y formato oficial'],
+];
+CU.forEach(([id,t,ac,pre,post,fp,fa,st,txt])=>$('#cus').append(el(`<article class="cu"><div class="hd"><h3><span class="mono">${id}</span> · ${t}</h3><span class="pill ${ST[st][0]}">${txt}</span></div><dl><dt>Actor</dt><dd>${ac}</dd><dt>Antes</dt><dd>${pre}</dd><dt>Después</dt><dd>${post}</dd></dl><h4>Flujo principal</h4><ol>${fp.map(x=>`<li>${x}</li>`).join('')}</ol><h4>Flujos alternativos</h4><ul>${fa.map(x=>`<li>${x}</li>`).join('')}</ul></article>`)));
+
+/* ---------- MAQUETAS ---------- */
+const side=['Bandeja de tamizaje FIT/SOH','Abrir episodio','Referencias','Exportación HIS-MINSA'];
+const shell=(active,title,body,extra='')=>`<div class="mk"><div class="mk-top"><span>SIHCE · Tamizaje FIT/SOH</span><span class="row"><span class="demo">Datos de ejemplo</span><small>C.S. Ejemplo I-3 · MEDICO</small></span></div><div class="mk-body"><div class="mk-side">${side.map((s,i)=>`<span class="${i===active?'on':''}">${s}</span>`).join('')}${extra}</div><div class="mk-main"><div class="mk-title">${title}</div>${body}</div></div></div>`;
+const fld=(l,v)=>`<div class="fld"><label>${l}</label><b>${v}</b></div>`;
+const inp=(l,v,ph)=>`<div class="fld"><label>${l}</label><div class="inp ${ph?'ph':''}">${v}</div></div>`;
+const pac=(est,cls)=>`<div class="mk-card"><h5>Datos del paciente y episodio</h5><div class="mk-grid">${fld('DNI','4•••••21')}${fld('Paciente','PACIENTE EJEMPLO, ROSA')}${fld('Edad','58 años')}${fld('Sexo','Femenino')}${fld('Estado',`<span class="tag ${cls}">${est}</span>`)}${fld('Fecha de apertura','02/10/2026 08:15')}${fld('Asintomático','Sí')}${fld('Afiliado SIS','Sí')}</div></div>`;
+const prog=n=>{const s=['Evaluación','Frasco','Muestra','Análisis','Resultado','Entrega'];return `<div class="steps">${s.map((x,i)=>`<span class="${i<n?'done':i===n?'now':''}">${x}</span>`).join('')}</div>`};
+const yn=(t,on)=>`<div class="yn"><span>${t}</span><span class="sw"><span class="${on?'on r':''}">Sí</span><span class="${on?'':'on'}">No</span></span></div>`;
+const S=[
+ {id:'m1',t:'Bandeja de tamizaje',cu:'Todos',st:'ok',d:'Punto de entrada. Lista los episodios del establecimiento con su estado y permite buscar por número de episodio o DNI.',
+  h:shell(0,'Bandeja de tamizaje FIT/SOH <span class="btn">+ Abrir episodio</span>',`<div class="mk-card"><h5>Búsqueda de episodios</h5><div class="row"><div class="inp ph" style="flex:1 1 260px">Buscar por N° episodio o DNI</div><div class="inp" style="flex:0 0 180px">Todos los estados ▾</div><span class="btn">Buscar</span></div></div>
+  <div class="mk-card" style="padding:0"><table><thead><tr><th>N° episodio</th><th>DNI</th><th>Paciente</th><th>Estado</th><th>Fecha apertura</th><th>Devolver hasta</th><th>Acciones</th></tr></thead><tbody>
+  <tr><td>00001234-2026-00042</td><td>4•••••21</td><td>PACIENTE EJEMPLO, ROSA</td><td><span class="tag tg-b">En evaluación de riesgo</span></td><td>02/10/2026</td><td>—</td><td><span class="btn sec">Abrir</span></td></tr>
+  <tr><td>00001234-2026-00041</td><td>0•••••77</td><td>PACIENTE EJEMPLO, JUAN</td><td><span class="tag tg-y">Frasco entregado</span></td><td>30/09/2026</td><td>15/10/2026</td><td><span class="btn sec">Abrir</span></td></tr>
+  <tr><td>00001234-2026-00040</td><td>2•••••03</td><td>PACIENTE EJEMPLO, MARÍA</td><td><span class="tag tg-b">Resultado listo</span></td><td>24/09/2026</td><td>09/10/2026</td><td><span class="btn sec">Abrir</span></td></tr>
+  <tr><td>00001234-2026-00039</td><td>1•••••58</td><td>PACIENTE EJEMPLO, LUIS</td><td><span class="tag tg-r">Referido (positivo)</span></td><td>22/09/2026</td><td>07/10/2026</td><td><span class="btn sec">Abrir</span></td></tr>
+  <tr><td>00001234-2026-00038</td><td>0•••••12</td><td>PACIENTE EJEMPLO, ANA</td><td><span class="tag tg-g">Completado</span></td><td>19/09/2026</td><td>04/10/2026</td><td><span class="btn sec">Abrir</span></td></tr>
+  </tbody></table></div>`)},
+ {id:'m2',t:'Abrir episodio',cu:'CU-01',st:'warn',d:'El personal ingresa el DNI; el sistema trae los datos de RENIEC y SIS, calcula la edad y decide la elegibilidad.',
+  h:shell(1,'Abrir episodio de tamizaje FIT/SOH',`<div class="mk-card"><h5>Identificación del paciente</h5><div class="row"><div style="flex:0 0 260px">${inp('DNI','4•••••21')}</div><span class="btn" style="align-self:flex-end">Consultar RENIEC</span></div>
+  <div class="mk-grid">${fld('Apellidos y nombres','PACIENTE EJEMPLO, ROSA')}${fld('Fecha de nacimiento','14/03/1968')}${fld('Edad','58 años')}${fld('Sexo','Femenino')}${fld('Afiliación SIS','Activa')}${fld('Financiador','SIS')}${fld('Origen del dato','RENIEC · caché vigente')}${fld('Establecimiento','C.S. Ejemplo I-3')}</div>
+  <div class="alert al-g">Elegible: la edad está entre 50 y 70 años.</div></div>
+  <div class="mk-card"><h5>Condición clínica</h5>${yn('El paciente es asintomático (sin sangrado, dolor abdominal ni cambio del hábito intestinal)',false).replace('on">No','">No').replace('<span class="">Sí','<span class="on">Sí')}${inp('Observaciones','Opcional',1)}</div>
+  <div class="row end"><span class="btn sec">Cancelar</span><span class="btn">Abrir episodio</span></div>
+  <div class="alert al-r">Si la edad está fuera de rango, el sistema bloquea la apertura: «El paciente tiene 47 años; el tamizaje FIT inicia a los 50».</div>`)},
+ {id:'m3',t:'Evaluación de riesgo',cu:'CU-02',st:'ok',d:'El médico marca los cuatro factores. Si alguno es Sí, el sistema cancela el tamizaje y genera la referencia.',
+  h:shell(0,'Episodio 00001234-2026-00042',prog(0)+pac('En evaluación de riesgo','tg-b')+`<div class="mk-card"><h5>Evaluación de factores de riesgo</h5>${yn('Antecedente familiar de cáncer colorrectal (1er grado)',false)}${yn('Antecedente de enfermedad inflamatoria intestinal (EII)',false)}${yn('Antecedente de síndrome hereditario (Lynch, PAF, etc.)',false)}${yn('Antecedente personal de pólipo adenomatoso',false)}
+  <div class="alert al-b">Sin factores de riesgo: se habilita la entrega del frasco recolector. Con algún factor en Sí: referencia electiva a gastroenterología y episodio «Referido por riesgo».</div><div class="row end"><span class="btn">Guardar evaluación</span></div></div>`)},
+ {id:'m4',t:'Entrega del frasco',cu:'CU-03',st:'warn',d:'Se escanea el frasco recolector y el sistema registra la indicación en HIS (Momento 1) y la fecha límite de devolución.',
+  h:shell(0,'Episodio 00001234-2026-00042',prog(1)+pac('En evaluación de riesgo','tg-b')+`<div class="mk-card"><h5>Entrega de frasco recolector de heces</h5><div class="mk-grid c3">${inp('Código de barras del frasco','<span class="bar">FR-2026-0004211</span>')}${inp('Lote','L-2609A')}${inp('Fecha de vencimiento','30/06/2027')}</div>
+  <div class="mk-grid c3">${fld('Fecha de entrega','02/10/2026 08:32')}${fld('Devolver muestra hasta','17/10/2026 <span class="tag tg-y">plazo por validar</span>')}${fld('Registro HIS que se generará','Momento 1 · 82274/82270 · tipo D')}</div>
+  <div class="row end"><span class="btn sec">Imprimir instructivo</span><span class="btn">Entregar frasco</span></div></div>`)},
+ {id:'m5',t:'Recepción de muestra',cu:'CU-04',st:'warn',d:'El laboratorio recibe el frasco, valida la muestra y lo etiqueta. Si la muestra no es válida, se rechaza y se entrega un nuevo frasco.',
+  h:shell(0,'Episodio 00001234-2026-00041',prog(2)+pac('Frasco entregado','tg-y')+`<div class="mk-card"><h5>Recepción de muestra en laboratorio</h5><div class="mk-grid c3">${fld('Frasco','<span class="bar">FR-2026-0004198</span>')}${fld('Entregado','30/09/2026')}${fld('Devolver hasta','15/10/2026 <span class="tag tg-g">en plazo</span>')}</div>
+  ${yn('Envase en buen estado',false).replace('on">No','">No').replace('<span class="">Sí','<span class="on">Sí')}${yn('Muestra visible en el frasco',false).replace('on">No','">No').replace('<span class="">Sí','<span class="on">Sí')}
+  <div class="mk-grid c2">${inp('Código de etiqueta de laboratorio','<span class="bar">LAB-0926-0311</span>')}${inp('Motivo de rechazo','Solo si la muestra no es válida',1)}</div>
+  <div class="row end"><span class="btn red">Rechazar muestra</span><span class="btn">Recibir y etiquetar</span></div></div>`)},
+ {id:'m6',t:'Kit y resultado',cu:'CU-05',st:'warn',d:'El técnico vincula el kit de muestreo y registra el resultado cualitativo. El médico firma antes de la entrega.',
+  h:shell(0,'Episodio 00001234-2026-00040',prog(3)+`<div class="mk-card"><h5>Registro de kit de muestreo</h5><div class="mk-grid c3">${inp('Código de barras del kit','<span class="bar">KIT-88120457</span>')}${inp('Lote del kit','K-2608')}${inp('Vencimiento del kit','31/03/2027')}</div><div class="alert al-b">Trazabilidad: frasco FR-2026-0004187 ↔ kit KIT-88120457 ↔ episodio 00040.</div></div>
+  <div class="mk-card"><h5>Registro de resultado FIT</h5><div class="mk-grid">${inp('Resultado','Positivo / Anormal ▾')}${inp('Equipo','OC-Sensor DIANA')}${inp('N° de serie','DN-20417')}${inp('Calibración','15/09/2026')}</div>
+  <div class="mk-grid">${fld('Campo LAB (automático)','<span class="tag tg-r">A</span>')}${fld('Procesado por','lab.ejemplo')}${fld('Fecha de procesamiento','01/10/2026 11:20')}${fld('Firma del médico','<span class="tag tg-y">Pendiente</span>')}</div>
+  <div class="row end"><span class="btn">Registrar resultado</span><span class="btn grn">Firmar resultado</span></div></div>`)},
+ {id:'m7',t:'Entrega de resultado',cu:'CU-06',st:'warn',d:'Con el resultado firmado, el médico lo entrega y el sistema ejecuta la acción automática: referencia urgente si es positivo, cita a 12 meses si es negativo.',
+  h:shell(0,'Episodio 00001234-2026-00040',prog(5)+`<div class="mk-card"><h5>Resultado FIT</h5><div class="mk-grid">${fld('Resultado','<span class="tag tg-r">POSITIVO · LAB = A</span>')}${fld('Procesado por','lab.ejemplo')}${fld('Firmado por','medico.ejemplo')}${fld('Fecha de firma','02/10/2026 09:05')}</div>
+  <div class="alert al-y">Al entregar el resultado el sistema hará tres cosas: registrar el Momento 2 en HIS (82274/82270, tipo D, LAB = A), generar la referencia URGENTE a gastroenterología y dejar el episodio en «Referido».</div>
+  <div class="row end"><span class="btn sec">Imprimir informe</span><span class="btn">Entregar resultado</span></div></div>
+  <div class="mk-grid c2"><div class="mk-card"><h5>Si el resultado es positivo</h5>${fld('Referencia','Urgente · Gastroenterología')}${fld('Diagnóstico','CIE-10 por definir (C180 / C189)')}</div><div class="mk-card"><h5>Si el resultado es negativo</h5>${fld('Próximo tamizaje programado','02/10/2027')}${fld('Estado del episodio','<span class="tag tg-g">Completado</span>')}</div></div>`)},
+ {id:'m8',t:'Referencias',cu:'CU-06',st:'ok',d:'Seguimiento de los pacientes referidos: por factor de riesgo o por resultado positivo, hasta el diagnóstico de la colonoscopía.',
+  h:shell(2,'Referencias — Tamizaje FIT/SOH',`<div class="mk-card" style="padding:0"><table><thead><tr><th>Episodio</th><th>Paciente</th><th>Tipo</th><th>Prioridad</th><th>Establecimiento destino</th><th>Estado</th><th>Fecha de referencia</th><th>Diagnóstico colonoscopía</th><th></th></tr></thead><tbody>
+  <tr><td>…-00039</td><td>PACIENTE EJEMPLO, LUIS</td><td>Resultado positivo</td><td><span class="tag tg-r">Urgente</span></td><td>Hospital Ejemplo II-2</td><td><span class="tag tg-y">Enviada</span></td><td>29/09/2026</td><td>—</td><td><span class="btn sec">Hoja</span></td></tr>
+  <tr><td>…-00031</td><td>PACIENTE EJEMPLO, CARMEN</td><td>Resultado positivo</td><td><span class="tag tg-r">Urgente</span></td><td>Hospital Ejemplo II-2</td><td><span class="tag tg-g">Atendida</span></td><td>11/09/2026</td><td>Pólipo adenomatoso</td><td><span class="btn sec">Hoja</span></td></tr>
+  <tr><td>…-00036</td><td>PACIENTE EJEMPLO, PEDRO</td><td>Factor de riesgo</td><td><span class="tag tg-n">Electiva</span></td><td>Hospital Ejemplo II-2</td><td><span class="tag tg-b">Generada</span></td><td>17/09/2026</td><td>—</td><td><span class="btn sec">Hoja</span></td></tr>
+  </tbody></table></div>`)},
+ {id:'m9',t:'Exportación HIS',cu:'CU-07',st:'warn',d:'El coordinador exporta los registros pendientes y consulta el histórico de exportaciones.',
+  h:shell(3,'Exportación a HIS-MINSA',`<div class="mk-card"><div class="row" style="justify-content:space-between"><div>${fld('Registros HIS pendientes de exportar','38')}</div><span class="btn">Exportar registros (CSV)</span></div></div>
+  <div class="mk-card" style="padding:0"><table><thead><tr><th>Fecha</th><th>Formato</th><th>Total registros</th><th>Exportados</th><th>Pendientes</th><th>Generado por</th></tr></thead><tbody>
+  <tr><td>01/10/2026 17:02</td><td>CSV</td><td>52</td><td>52</td><td>0</td><td>coord.ejemplo</td></tr><tr><td>30/09/2026 17:00</td><td>CSV</td><td>47</td><td>47</td><td>0</td><td>coord.ejemplo</td></tr><tr><td>29/09/2026 16:58</td><td>CSV</td><td>61</td><td>61</td><td>0</td><td>coord.ejemplo</td></tr></tbody></table></div>`)},
+ {id:'m10',t:'Tablero DPCAN',cu:'RF-022',st:'bad',d:'Propuesta, aún no construida. Monitoreo para coordinadores con filtros por región, red, establecimiento y periodo.',
+  h:shell(-1,'Tablero de cobertura <span class="row"><span class="inp" style="min-width:150px">Región: Todas ▾</span><span class="inp" style="min-width:130px">Sep 2026 ▾</span></span>',`<div class="tiles"><div class="tile"><b>1 248</b><span>Episodios abiertos</span></div><div class="tile"><b>1 020</b><span>Resultados entregados</span></div><div class="tile"><b>6,1 %</b><span>Positividad</span></div><div class="tile"><b>71 %</b><span>Referidos atendidos</span></div></div>
+  <div class="mk-grid c2"><div class="mk-card"><h5>Episodios por estado</h5>
+  <div class="hb"><span>Frasco entregado</span><i style="width:27%"></i><em>186</em></div><div class="hb"><span>Muestra recibida</span><i style="width:6%"></i><em>42</em></div><div class="hb"><span>Completado</span><i style="width:100%"></i><em>958</em></div><div class="hb"><span>Referido (positivo)</span><i style="width:6.5%"></i><em>62</em></div></div>
+  <div class="mk-card"><h5>Tamizados por grupo de edad</h5>
+  <div class="hb"><span>50–54 años</span><i style="width:100%"></i><em>312</em></div><div class="hb"><span>55–59 años</span><i style="width:88%"></i><em>274</em></div><div class="hb"><span>60–64 años</span><i style="width:77%"></i><em>241</em></div><div class="hb"><span>65–70 años</span><i style="width:62%"></i><em>193</em></div></div></div>`,'<span class="on">Tablero de cobertura</span>')},
+];
+const SL={ok:'Pantalla construida',warn:'Pantalla construida, con ajustes pendientes',bad:'Propuesta, no construida'};
+S.forEach((s,i)=>{
+  $('#scrnav').append(el(`<a href="#${s.id}">${i+1}. ${s.t}</a>`));
+  $('#screens').append(el(`<div class="screen" id="${s.id}"><div class="cap"><h3>${i+1}. ${s.t}</h3><span class="pill p-n">${s.cu}</span><span class="pill ${ST[s.st][0]}">${SL[s.st]}</span><p>${s.d}</p></div><div class="frame">${s.h}</div></div>`));
+});
+$('#scrnav').addEventListener('click',e=>{const a=e.target.closest('a');if(!a)return;e.preventDefault();document.getElementById(a.getAttribute('href').slice(1)).scrollIntoView({behavior:'smooth'})});
+
+/* ---------- TABS ---------- */
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function show(id){ if(!tabs.some(t=>t.dataset.tab===id)) id='matriz';
+  tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.hidden=p.id!=='p-'+id); }
+tabs.forEach(t=>t.addEventListener('click',()=>{show(t.dataset.tab);try{history.replaceState(null,'','#'+t.dataset.tab)}catch(e){}}));
+show((location.hash||'').slice(1));
+</script>
+
+</body>
+</html>
